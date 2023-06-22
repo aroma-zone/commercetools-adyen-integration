@@ -1,5 +1,4 @@
 import { expect } from 'chai'
-import fetch from 'node-fetch'
 import ctpClientBuilder from '../../src/utils/ctp.js'
 import config from '../../src/config/config.js'
 import {

@@ -1,4 +1,3 @@
-import fetch from 'node-fetch'
 import { serializeError } from 'serialize-error'
 import config from '../config/config.js'
 import utils from '../utils.js'

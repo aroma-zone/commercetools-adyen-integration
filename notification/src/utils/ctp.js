@@ -1,4 +1,3 @@
-import fetch from 'node-fetch'
 import lodash from 'lodash'
 import { createClient } from '@commercetools/sdk-client'
 import { createAuthMiddlewareForClientCredentialsFlow } from '@commercetools/sdk-middleware-auth'
