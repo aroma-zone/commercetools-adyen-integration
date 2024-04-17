@@ -1,0 +1,69 @@
+name: Deploy to VSF Cloud dev namespace
+on:
+  push:
+    branches:
+      - develop
+
+  workflow_dispatch:
+
+jobs:
+  GetVersion:
+    runs-on: ubuntu-latest
+    environment: dev
+    outputs:
+      version: ${{ steps.version_step.outputs.VERSION}}
+
+    steps:
+
+    - name: GetVersion
+      id: version_step
+      run: |
+        Version=$(sed 's:/:-:g' <<< "${{ github.ref_name }}")
+        Version=${Version,,}
+        Sha=${{ github.sha }}
+        Sha="${Sha::7}"
+        if [[ "$GITHUB_REF_TYPE" == "tag" ]] ; then
+          echo "VERSION=$Version-dev" >> $GITHUB_OUTPUT
+        else
+          echo "VERSION=$Version-$Sha-dev" >> $GITHUB_OUTPUT
+        fi
+
+  buildBuildAndPublishAdyenExtension:
+    needs: GetVersion
+    uses: ./.github/workflows/Template-buildPublishAdyenContainer.yml
+    secrets:
+      CLOUD_USERNAME: ${{ secrets.CLOUD_USERNAME }}
+      CLOUD_PASSWORD: ${{ secrets.CLOUD_PASSWORD }}
+      adyenConfig: '{"commercetools": {"aromazone-dev": {"clientId": "${{ secrets.CT_ADYEN_CLIENT_DEV }}","clientSecret": "${{ secrets.CT_ADYEN_SECRET_DEV }}"},"aromazone-qa": {"clientId": "${{ secrets.CT_ADYEN_CLIENT_QA }}","clientSecret": "${{ secrets.CT_ADYEN_SECRET_QA }}"},"aromazone-staging": {"clientId": "${{ secrets.CT_ADYEN_CLIENT_STAGING }}","clientSecret": "${{ secrets.CT_ADYEN_SECRET_STAGING }}"}},"adyen": {"AromaZoneECOM": {"apiKey": "${{ secrets.ADYEN_APIKEY_NONPROD }}", "apiBaseUrl": "${{ secrets.ADYENCHECKOUTAPIBASEURL }}/v71"}},"port": 8080,"logLevel": "debug" }'
+    with:
+      environment: dev
+      imageName: ct-adyen-integration-extension
+      version: ${{ needs.GetVersion.outputs.VERSION }}
+      dockerFile: .vuestorefrontcloud/docker/extension.Dockerfile
+
+  buildBuildAndPublishAdyenNotification:
+    needs: GetVersion
+    uses: ./.github/workflows/Template-buildPublishAdyenContainer.yml
+    secrets:
+      CLOUD_USERNAME: ${{ secrets.CLOUD_USERNAME }}
+      CLOUD_PASSWORD: ${{ secrets.CLOUD_PASSWORD }}
+      adyenConfig: '{"commercetools": {"aromazone-dev": {"clientId": "${{ secrets.CT_ADYEN_CLIENT_DEV }}","clientSecret": "${{ secrets.CT_ADYEN_SECRET_DEV }}"},"aromazone-qa": {"clientId": "${{ secrets.CT_ADYEN_CLIENT_QA }}","clientSecret": "${{ secrets.CT_ADYEN_SECRET_QA }}"},"aromazone-staging": {"clientId": "${{ secrets.CT_ADYEN_CLIENT_STAGING }}","clientSecret": "${{ secrets.CT_ADYEN_SECRET_STAGING }}"}},"adyen": {"AromaZoneECOM": {"enableHmacSignature": "true","secretHmacKey": "${{ secrets.ADYEN_SECRET_HMACKEY_NONPROD }}"}}, "adyenPaymentMethodsToNames": ${{ vars.ADYEN_PAYMENT_METHODS_NAMES }},"port": 8081,"logLevel": "debug" }'
+    with:
+      environment: dev
+      imageName: ct-adyen-integration-notification
+      version: ${{ needs.GetVersion.outputs.VERSION }}
+      dockerFile: .vuestorefrontcloud/docker/notification.Dockerfile
+
+  deployImages:
+    needs:
+      [
+        GetVersion,
+        buildBuildAndPublishAdyenExtension,
+        buildBuildAndPublishAdyenNotification,
+      ]
+    uses: ./.github/workflows/Template-deployImagesToVSFCloud.yml
+    secrets: inherit
+    with:
+      environment: dev
+      version: ${{ needs.GetVersion.outputs.VERSION }}
+      namespace: aromazone-dev-europe-west1-gcp-storefrontcloud-io

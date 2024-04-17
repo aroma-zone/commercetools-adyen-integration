@@ -1,0 +1,48 @@
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+      imageName:
+        required: true
+        type: string
+      version:
+        required: true
+        type: string
+      dockerFile:
+        required: true
+        type: string
+    secrets:
+      adyenConfig:
+        required: true
+      CLOUD_USERNAME:
+        required: true
+      CLOUD_PASSWORD:
+        required: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Build and publish docker image for CT
+        uses: elgohr/Publish-Docker-Github-Action@v5
+        with:
+          name: aromazone-storefrontcloud-io/${{ inputs.imageName }}:${{ inputs.version }}
+          registry: registry.vuestorefront.cloud
+          username: ${{ secrets.CLOUD_USERNAME }}
+          password: ${{ secrets.CLOUD_PASSWORD }}
+          dockerfile: ${{ inputs.dockerFile }}
+          buildoptions: --compress
+          buildargs: ADYEN_INTEGRATION_CONFIG
+        env:
+          ADYEN_INTEGRATION_CONFIG: ${{ secrets.adyenConfig }}

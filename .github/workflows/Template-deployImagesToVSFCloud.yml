@@ -1,0 +1,89 @@
+on:
+  workflow_call:
+    inputs:
+      environment: 
+        required: true
+        type: string
+      version:
+        required: true
+        type: string
+      namespace:
+        required: true
+        type: string
+    outputs:
+      state:
+        description: "The deployment status (success/failure)"
+        value: ${{ jobs.deploy.outputs.state }}
+
+jobs:
+  deploy:
+  
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    outputs:
+      state: ${{ steps.returnStatus.outputs.state }}
+    steps:
+
+      - uses: chrnorm/deployment-action@releases/v2
+        name: Create GitHub deployment
+        id: deployment
+        with:
+          token: ${{ github.token }}
+          environment-url: ${{ vars.DOMAIN }}
+          environment: ${{ inputs.environment }}
+          initial-status: in_progress
+
+      - name: Deploy on ${{ inputs.namespace }}
+        id: status
+        run: |
+          if curl -s -H 'X-User-Id: ${{ secrets.CLOUD_USERNAME }}' -H 'X-Api-Key: ${{ secrets.CLOUD_PASSWORD }}' -H 'Content-Type: application/json' -X PATCH -d '{
+              "additional_apps": {
+                  {
+                    "name":"ct-adyen-integration-notification",
+                    "tag":"${{ inputs.version }}",
+                    "image":"registry.vuestorefront.cloud/aromazone-storefrontcloud-io/ct-adyen-integration-notification",
+                    "path":"/ct-adyen-integration-notification",
+                    "has_base_path":false,
+                    "port":"8081"
+                  },
+                  {
+                    "name":"ct-adyen-integration-extension",
+                    "tag":"${{ inputs.version }}",
+                    "image":"registry.vuestorefront.cloud/aromazone-storefrontcloud-io/ct-adyen-integration-extension",
+                    "path":"/ct-adyen-integration-extension",
+                    "has_base_path":false,
+                    "port":"8080"
+                  }
+                ]
+              }
+            }' https://farmer.vuestorefront.cloud/instance/${{ inputs.namespace }} | grep -q '{"code":200'; then
+            echo "Instance updated"
+          else
+            echo "Something went wrong during the update process..."
+            exit 1
+          fi
+
+      - name: Update deployment status (success)
+        if: success()
+        uses: chrnorm/deployment-status@v2
+        with:
+          token: ${{ github.token }}
+          environment-url: ${{ vars.DOMAIN }}
+          state: success
+          description: Congratulations! The deploy is done.
+          deployment-id: ${{ steps.deployment.outputs.deployment_id }}
+
+      - name: Update deployment status (failure)
+        if: failure()
+        uses: chrnorm/deployment-status@v2
+        with:
+          token: ${{ github.token }}
+          environment-url: ${{ vars.DOMAIN }}
+          description: Unfortunately, the instance hasn't been updated.
+          state: failure
+          deployment-id: ${{ steps.deployment.outputs.deployment_id }}
+
+      - name: Set return status
+        if: always()
+        id: returnStatus
+        run: echo "state=${{steps.status.outcome}}" >> $GITHUB_OUTPUT
