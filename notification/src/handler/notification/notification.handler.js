@@ -292,7 +292,7 @@ async function calculateUpdateActionsForPayment(payment, notification, logger) {
     if (
       transactionType === 'Authorization' &&
       transactionState === 'Success' &&
-      !notificationRequestItem.operations.includes('CAPTURE')
+      !notificationRequestItem.operations?.includes('CAPTURE')
     ) {
       updateActions.push(
         getAddTransactionUpdateAction({
