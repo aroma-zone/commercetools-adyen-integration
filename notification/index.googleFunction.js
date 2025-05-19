@@ -1,3 +1,4 @@
+import { trace } from '@opentelemetry/api'
 import url from 'url'
 import handler from './src/handler/notification/notification.handler.js'
 import { getLogger } from './src/utils/logger.js'
@@ -8,6 +9,12 @@ import { getCtpProjectConfig, getAdyenConfig } from './src/utils/parser.js'
 const logger = getLogger()
 
 export const notificationTrigger = async (request, response) => {
+  const span = trace.getActiveSpan()
+  const correlationId = request?.headers?.['x-correlation-id']
+  if (correlationId) {
+    span?.setAttribute('correlationId', correlationId)
+  }
+
   const { notificationItems } = request.body
   if (!notificationItems) {
     return response.status(400).send('No notification received.')
@@ -26,6 +33,7 @@ export const notificationTrigger = async (request, response) => {
     }
   } catch (err) {
     const cause = getErrorCause(err)
+    span?.recordException(cause.message)
     logger.error(
       {
         notification: utils.getNotificationForTracking(notificationItems),

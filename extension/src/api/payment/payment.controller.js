@@ -1,3 +1,4 @@
+import { trace } from '@opentelemetry/api'
 import { serializeError } from 'serialize-error'
 import httpUtils from '../../utils.js'
 import { getAuthorizationRequestHeader } from '../../validator/authentication.js'
@@ -6,6 +7,12 @@ import paymentHandler from '../../paymentHandler/payment-handler.js'
 const logger = httpUtils.getLogger()
 
 async function processRequest(request, response) {
+  const span = trace.getActiveSpan()
+  const correlationId = request?.headers?.['x-correlation-id']
+  if (correlationId) {
+    span?.setAttribute('correlationId', correlationId)
+  }
+
   if (request.method !== 'POST') {
     // API extensions always calls this endpoint with POST, so if we got GET, we don't process further
     // https://docs.commercetools.com/api/projects/api-extensions#input
@@ -47,6 +54,7 @@ async function processRequest(request, response) {
 
     return httpUtils.sendResponse(result)
   } catch (err) {
+    span?.recordException(err)
     return httpUtils.sendResponse({
       response,
       statusCode: 400,

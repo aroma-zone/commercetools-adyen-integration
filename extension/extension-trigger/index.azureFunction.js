@@ -1,3 +1,4 @@
+import { trace } from '@opentelemetry/api'
 import utils from '../src/utils.js'
 import paymentHandler from '../src/paymentHandler/payment-handler.js'
 import { getAuthorizationRequestHeader } from '../src/validator/authentication.js'
@@ -25,6 +26,12 @@ function handleErrorResponse(context, errors) {
 }
 
 export const azureExtensionTrigger = async function (context, req) {
+  const span = trace.getActiveSpan()
+  const correlationId = req.headers['x-correlation-id']
+  if (correlationId) {
+    span?.setAttribute('correlationId', correlationId)
+  }
+
   const paymentObj = req.body?.resource?.obj
   if (!paymentObj) {
     const errors = [

@@ -1,3 +1,4 @@
+import { trace } from '@opentelemetry/api'
 import paymentHandler from './src/paymentHandler/payment-handler.js'
 import utils from './src/utils.js'
 import { getAuthorizationRequestHeader } from './src/validator/authentication.js'
@@ -5,6 +6,12 @@ import { getAuthorizationRequestHeader } from './src/validator/authentication.js
 const { handleUnexpectedPaymentError } = utils
 
 export const extensionTrigger = async (request, response) => {
+  const span = trace.getActiveSpan()
+  const correlationId = request?.headers?.['x-correlation-id']
+  if (correlationId) {
+    span?.setAttribute('correlationId', correlationId)
+  }
+
   const paymentObj = request?.body?.resource?.obj
   try {
     if (!paymentObj) {

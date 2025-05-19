@@ -1,3 +1,4 @@
+import { trace } from '@opentelemetry/api'
 import notificationHandler from './src/handler/notification/notification.handler.js'
 import { getLogger } from './src/utils/logger.js'
 import utils from './src/utils/commons.js'
@@ -7,6 +8,12 @@ import { getCtpProjectConfig, getAdyenConfig } from './src/utils/parser.js'
 const logger = getLogger()
 
 export const handler = async (event) => {
+  const span = trace.getActiveSpan()
+  const correlationId = event?.headers?.['x-correlation-id']
+  if (correlationId) {
+    span?.setAttribute('correlationId', correlationId)
+  }
+
   // Reason for this check: if AWS API Gateway is used then event.body is provided as a string payload.
   const body = event.body ? JSON.parse(event.body) : event
   const { notificationItems } = body
