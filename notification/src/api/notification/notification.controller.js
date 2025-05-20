@@ -1,3 +1,4 @@
+import { trace } from '@opentelemetry/api'
 import _ from 'lodash'
 import url from 'url'
 import utils from '../../utils/commons.js'
@@ -9,6 +10,12 @@ import { getLogger } from '../../utils/logger.js'
 const logger = getLogger()
 
 async function handleNotification(request, response) {
+  const span = trace.getActiveSpan()
+  const correlationId = request?.headers?.['x-correlation-id']
+  if (correlationId) {
+    span?.setAttribute('correlationId', correlationId)
+  }
+
   if (request.method !== 'POST') {
     logger.debug(
       `Received non-POST request: ${request.method}. The request will not be processed...`,

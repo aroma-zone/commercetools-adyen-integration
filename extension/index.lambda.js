@@ -1,3 +1,4 @@
+import { trace } from '@opentelemetry/api'
 import utils from './src/utils.js'
 import paymentHandler from './src/paymentHandler/payment-handler.js'
 import { getAuthorizationRequestHeader } from './src/validator/authentication.js'
@@ -5,6 +6,12 @@ import { getAuthorizationRequestHeader } from './src/validator/authentication.js
 const logger = utils.getLogger()
 
 let handler = async (event) => {
+  const span = trace.getActiveSpan()
+  const correlationId = event?.headers?.['x-correlation-id']
+  if (correlationId) {
+    span?.setAttribute('correlationId', correlationId)
+  }
+
   let paymentObj = {}
   try {
     const body = event.body ? JSON.parse(event.body) : event

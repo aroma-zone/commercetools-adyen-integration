@@ -1,3 +1,4 @@
+import { trace } from '@opentelemetry/api'
 import { withPayment } from '../validator/validator-builder.js'
 import makePaymentHandler from './make-payment.handler.js'
 import submitPaymentDetailsHandler from './submit-payment-details.handler.js'
@@ -19,6 +20,7 @@ import { isBasicAuthEnabled } from '../validator/authentication.js'
 import errorMessages from '../validator/error-messages.js'
 
 async function handlePayment(paymentObject, authToken) {
+  const span = trace.getActiveSpan()
   if (isBasicAuthEnabled() && !authToken) {
     return {
       errors: [
@@ -34,10 +36,21 @@ async function handlePayment(paymentObject, authToken) {
     paymentObject,
     authToken,
   )
-  if (validatePaymentErrors)
+  if (validatePaymentErrors) {
+    if (
+      Array.isArray(validatePaymentErrors) &&
+      validatePaymentErrors.length > 0
+    ) {
+      span?.setAttribute('errors', JSON.stringify(validatePaymentErrors))
+      validatePaymentErrors.forEach((error) => {
+        span?.recordException(error.message)
+      })
+    }
+
     return {
       errors: validatePaymentErrors,
     }
+  }
 
   const handlers = _getPaymentHandlers(paymentObject)
   const handlerResponses = await Promise.all(

@@ -1,3 +1,4 @@
+import { trace } from '@opentelemetry/api'
 import _ from 'lodash'
 import { serializeError } from 'serialize-error'
 import VError from 'verror'
@@ -14,6 +15,7 @@ async function processNotification(
   enableHmacSignature,
   ctpProjectConfig,
 ) {
+  const span = trace.getActiveSpan()
   const logger = mainLogger.child({
     commercetools_project_key: ctpProjectConfig.projectKey,
   })
@@ -107,6 +109,7 @@ async function processNotification(
         )
       }
 
+      span?.recordException(err)
       logger.error(err)
     }
   }
@@ -133,6 +136,9 @@ async function updatePaymentWithRepeater(
   ctpClient,
   logger,
 ) {
+  const span = trace.getActiveSpan()
+  span?.setAttribute('payment', JSON.stringify(payment))
+
   const maxRetry = 20
   let currentPayment = payment
   let currentVersion = payment.version
@@ -170,10 +176,16 @@ async function updatePaymentWithRepeater(
         updateActionsToLog =
           _obfuscateNotificationInfoFromActionFields(updateActions)
 
+      span?.setAttribute('actions', JSON.stringify(updateActionsToLog))
+
       if (err.statusCode !== 409) {
         const errMsg =
           `Unexpected error on payment update with ID: ${currentPayment.id}.` +
           `Failed actions: ${JSON.stringify(updateActionsToLog)}`
+        if (Array.isArray(err.body.errors) && err.body.errors.length > 0) {
+          span?.setAttribute('errors', JSON.stringify(err.body.errors))
+          span?.recordException(err.toString())
+        }
         throw new VError(err, errMsg)
       }
 
