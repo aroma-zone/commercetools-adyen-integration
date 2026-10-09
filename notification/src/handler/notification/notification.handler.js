@@ -588,6 +588,18 @@ async function getPaymentByMerchantOrPSPReference(
       return payment
     }
 
+    const createdAfter = new Date(Date.now() - 4 * 24 * 60 * 60 * 1000)
+    const resultByCustomFieldAndCreationDate = await ctpClient.fetchByCustomField(
+      ctpClient.builder.payments,
+      'merchantReference',
+      merchantReference,
+      createdAfter,
+    )
+    const recentPayment = resultByCustomFieldAndCreationDate.body?.results[0]
+    if (recentPayment) {
+      return recentPayment
+    }
+
     const resultByCustomField = await ctpClient.fetchByCustomField(
       ctpClient.builder.payments,
       'merchantReference',
