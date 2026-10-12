@@ -87,6 +87,9 @@ function _mapBillingAddress(requestObj, ctpCart) {
 }
 
 function _mapShippingAddress(requestObj, ctpCart) {
+  // An explicit null means nothing is shipped (workshops), so the cart shipping address must not fill it
+  if (requestObj.deliveryAddress === null) return requestObj
+
   const deliveryAddress = requestObj.deliveryAddress ?? {}
 
   deliveryAddress.street =
