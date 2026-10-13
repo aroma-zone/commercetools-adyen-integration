@@ -116,6 +116,26 @@ describe('mapping-cart-data-utils::getDataFromCart', () => {
     })
   })
 
+  describe('delivery address mapping', () => {
+    it('should keep an explicit null deliveryAddress', async () => {
+      const paymentObject = { id: 'payment-workshop-123' }
+      const cartWithCountryOnlyShipping = cloneDeep(ctpCart)
+      cartWithCountryOnlyShipping.shippingAddress = { country: 'FR' }
+      mockCtpEnpoints._mockCtpCartsEndpoint(
+        cartWithCountryOnlyShipping,
+        ctpProjectKey,
+      )
+
+      const result = await mappingCartDataUtils.getDataFromCart(
+        { deliveryAddress: null },
+        paymentObject,
+        ctpProjectKey,
+      )
+
+      expect(result.deliveryAddress).to.be.null
+    })
+  })
+
   describe('enhanced scheme data for scheme payments', () => {
     it('should map additional data for scheme payment with US billing', async () => {
       const paymentObject = { id: 'payment-us-123' }
