@@ -108,12 +108,13 @@ async function setUpClient(config) {
       return ctpClient.execute(this.buildRequestOptions(uri.byKey(key).build()))
     },
 
-    fetchByCustomField(uri, field, value) {
-      return ctpClient.execute(
-        this.buildRequestOptions(
-          uri.where(`custom(fields(${field}="${value}"))`).build(),
-        ),
-      )
+    fetchByCustomField(uri, field, value, createdAfter) {
+      let query = uri.where(`custom(fields(${field}="${value}"))`).build()
+      if (createdAfter)
+        query += `&where=${encodeURIComponent(
+          `createdAt > "${createdAfter.toISOString()}"`,
+        )}`
+      return ctpClient.execute(this.buildRequestOptions(query))
     },
 
     fetchByKeys(uri, keys) {
